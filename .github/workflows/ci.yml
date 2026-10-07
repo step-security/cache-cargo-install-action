@@ -123,8 +123,6 @@ jobs:
           printf '%s\n' 'C:\tools\cygwin\bin' >>"${GITHUB_PATH}"
           printf '%s\n' 'C:\tools\cygwin\usr\bin' >>"${GITHUB_PATH}"
         if: matrix.bash == 'cygwin'
-      - run: printf '%s\n' 'SHELLOPTS=igncr' >>"${GITHUB_ENV}"
-        if: matrix.bash == 'cygwin'
       - uses: taiki-e/checkout-action@v1
       - uses: taiki-e/install-action@v2
         with:
