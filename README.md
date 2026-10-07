@@ -144,7 +144,7 @@ Note that what this action installs for its setup (such as above tools) is consi
 [actions/cache]: https://github.com/actions/cache
 [checkout-action]: https://github.com/taiki-e/checkout-action
 [create-gh-release-action]: https://github.com/taiki-e/create-gh-release-action
-[install-action]: https://github.com/taiki-e/install-action
+[install-action]: https://github.com/step-security/taiki-e-install-action
 [setup-cross-toolchain-action]: https://github.com/step-security/setup-cross-toolchain-action
 [upload-rust-binary-action]: https://github.com/step-security/upload-rust-binary-action
 
