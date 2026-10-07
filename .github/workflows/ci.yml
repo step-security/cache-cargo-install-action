@@ -1,0 +1,235 @@
+name: CI
+
+permissions: {}
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash --noprofile --norc -CeEuxo pipefail {0}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  generate-matrix:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      matrix-test: ${{ steps.set.outputs.matrix-test }}
+      matrix-container: ${{ steps.set.outputs.matrix-container }}
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
+      - id: set
+        env:
+          IS_DEPENDABOT: ${{ github.actor == 'dependabot[bot]' }}
+        run: |
+          if [[ "${IS_DEPENDABOT}" == "true" ]]; then
+            echo 'matrix-test={"include":[{"os":"ubuntu-24.04"}]}' >>"${GITHUB_OUTPUT}"
+            echo 'matrix-container={"include":[{"container":"ubuntu:24.04"}]}' >>"${GITHUB_OUTPUT}"
+          else
+            {
+              echo 'matrix-test<<MATRIX_END'
+              echo '{"include":['
+              # GitHub-hosted runners
+              echo '{"os":"ubuntu-26.04"},'
+              echo '{"os":"ubuntu-26.04-arm"},'
+              echo '{"os":"ubuntu-24.04"},'
+              echo '{"os":"ubuntu-24.04-arm"},'
+              echo '{"os":"ubuntu-22.04"},'
+              echo '{"os":"ubuntu-22.04-arm"},'
+              echo '{"os":"ubuntu-slim"},'
+              echo '{"os":"ubuntu-22.04","tool1":"cargo-hack@0.5.24","tool2":"cargo-llvm-cov@0.5.3"},'
+              echo '{"os":"ubuntu-22.04","tool1":"cargo-hack@0.5","tool2":"cargo-llvm-cov@0.4"},'
+              echo '{"os":"macos-26"},'
+              echo '{"os":"macos-15"},'
+              echo '{"os":"macos-15-intel"},'
+              echo '{"os":"windows-2025"},'
+              echo '{"os":"windows-2025","bash":"msys64"},'
+              echo '{"os":"windows-2025","bash":"cygwin"},'
+              echo '{"os":"windows-2022"},'
+              echo '{"os":"windows-2022","bash":"msys64"},'
+              echo '{"os":"windows-2022","bash":"cygwin"},'
+              echo '{"os":"windows-11-arm"},'
+              echo '{"os":"windows-2025","tool1":"cargo-hack@0.5.24","tool2":"cargo-llvm-cov@0.5.3"},'
+              echo '{"os":"windows-2025","tool1":"cargo-hack@0.5","tool2":"cargo-llvm-cov@0.4"}'
+              echo ']}'
+              echo 'MATRIX_END'
+            } >>"${GITHUB_OUTPUT}"
+            {
+              echo 'matrix-container<<MATRIX_END'
+              echo '{"include":['
+              # Containers: Debian-based
+              echo '{"container":"ubuntu:20.04"},'
+              echo '{"container":"ubuntu:22.04"},'
+              echo '{"container":"ubuntu:24.04"},'
+              echo '{"container":"ubuntu:26.04"},'
+              echo '{"container":"ubuntu:rolling"},'
+              echo '{"container":"debian:10-slim"},'
+              echo '{"container":"debian:12-slim"},'
+              echo '{"container":"debian:13-slim"},'
+              echo '{"container":"debian:testing"},'
+              # Containers: Fedora/RHEL-based
+              echo '{"container":"fedora:latest"},'
+              echo '{"container":"almalinux:8"},'
+              echo '{"container":"almalinux:8-minimal"},'
+              echo '{"container":"almalinux:9"},'
+              echo '{"container":"almalinux:9-minimal"},'
+              echo '{"container":"almalinux:10"},'
+              echo '{"container":"almalinux:10-minimal"},'
+              # Containers: Arch-based
+              echo '{"container":"archlinux:latest"},'
+              # Containers: Alpine
+              echo '{"container":"alpine:3.16"},'
+              echo '{"container":"alpine:3.17"},'
+              echo '{"container":"alpine:3.18"},'
+              echo '{"container":"alpine:3.19"},'
+              echo '{"container":"alpine:3.20"},'
+              echo '{"container":"alpine:3.21"},'
+              echo '{"container":"alpine:3.22"},'
+              echo '{"container":"alpine:3.23"}'
+              echo ']}'
+              echo 'MATRIX_END'
+            } >>"${GITHUB_OUTPUT}"
+          fi
+
+  test:
+    needs: generate-matrix
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix-test) }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - run: |
+          printf '%s\n' 'C:\msys64\mingw32\bin' >>"${GITHUB_PATH}"
+          printf '%s\n' 'C:\msys64\usr\bin' >>"${GITHUB_PATH}"
+        if: matrix.bash == 'msys64'
+      - run: |
+          choco install --no-progress --requirechecksums cygwin
+          printf '%s\n' 'C:\tools\cygwin\bin' >>"${GITHUB_PATH}"
+          printf '%s\n' 'C:\tools\cygwin\usr\bin' >>"${GITHUB_PATH}"
+          printf '%s\n' 'SHELLOPTS=igncr' >>"${GITHUB_ENV}"
+        if: matrix.bash == 'cygwin'
+      - uses: taiki-e/checkout-action@v1
+      - uses: step-security/taiki-e-install-action@v2
+        with:
+          tool: rust@stable
+          fallback: none
+      - uses: ./
+        with:
+          tool: ${{ matrix.tool1 || 'cargo-hack' }}
+          locked: false
+      - run: cargo hack --version
+      - uses: ./
+        with:
+          tool: ${{ matrix.tool2 || 'cargo-llvm-cov' }}
+      - run: cargo llvm-cov --version
+      - uses: ./
+        with:
+          tool: parse-changelog
+          git: https://github.com/taiki-e/parse-changelog
+          rev: d231414
+      - run: parse-changelog --version
+      - uses: ./
+        with:
+          tool: cargo-minimal-versions
+          git: https://github.com/taiki-e/cargo-minimal-versions
+          tag: v0.1.19
+      - run: cargo minimal-versions --version
+      # Test all shells listed in https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsshell
+      - name: Test bash
+        run: cargo llvm-cov --version
+        shell: bash
+      - name: Test sh
+        run: cargo llvm-cov --version
+        shell: sh
+        if: startsWith(matrix.os, 'ubuntu') || startsWith(matrix.os, 'macos')
+      - name: Test pwsh
+        run: cargo llvm-cov --version
+        shell: pwsh
+      - name: Test powershell
+        run: cargo llvm-cov --version
+        shell: powershell
+        if: startsWith(matrix.os, 'windows')
+      - name: Test cmd
+        run: cargo llvm-cov --version
+        shell: cmd # zizmor: ignore[misfeature] used for compatibility testing
+        if: startsWith(matrix.os, 'windows')
+
+  test-container:
+    needs: generate-matrix
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix-container) }}
+    runs-on: ubuntu-24.04
+    container: ${{ matrix.container }}
+    timeout-minutes: 60
+    steps:
+      - name: Install requirements (old debian)
+        run: |
+          # In Debian, the old repositories is removed from the main mirrors some time after end of LTS.
+          codename=$(grep -E '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2)
+          sed -i /etc/apt/sources.list -e 's/deb.debian.org/archive.debian.org/g' \
+            -e 's|security.debian.org|archive.debian.org/|g' \
+            -e "/${codename}-updates/d"
+        if: startsWith(matrix.container, 'debian:10') || startsWith(matrix.container, 'debian:11')
+      - name: Install requirements (ubuntu/debian)
+        run: |
+          apt-get -o Acquire::Retries=10 -qq update
+          apt-get -o Acquire::Retries=10 -o Dpkg::Use-Pty=0 install -y --no-install-recommends gcc libc6-dev
+        if: startsWith(matrix.container, 'ubuntu') || startsWith(matrix.container, 'debian')
+      - name: Install requirements (fedora/almalinux)
+        run: |
+          if type -P dnf >/dev/null; then
+            dnf install -y gcc
+          elif type -P microdnf >/dev/null; then
+            microdnf install -y gcc
+          else
+            yum install -y gcc
+          fi
+        if: startsWith(matrix.container, 'fedora') || startsWith(matrix.container, 'almalinux')
+      - name: Install requirements (archlinux)
+        run: pacman -Sy --noconfirm gcc
+        if: startsWith(matrix.container, 'archlinux')
+      - name: Install requirements (recent alpine)
+        run: apk --no-cache add cargo
+        shell: sh
+        if: matrix.container == 'alpine:3.22' || matrix.container == 'alpine:3.23'
+      - name: Install requirements (old alpine)
+        run: apk --no-cache add bash ca-certificates curl gcc musl-dev
+        shell: sh
+        if: startsWith(matrix.container, 'alpine') && matrix.container != 'alpine:3.22' && matrix.container != 'alpine:3.23'
+      - uses: step-security/taiki-e-install-action@v2
+        with:
+          tool: rust@stable
+          fallback: none
+        if: matrix.container != 'alpine:3.22' && matrix.container != 'alpine:3.23'
+      - run: apt-get -qq -o Dpkg::Use-Pty=0 purge -y curl
+        if: startsWith(matrix.container, 'ubuntu') || startsWith(matrix.container, 'debian')
+      - uses: taiki-e/checkout-action@v1
+      - run: apk --no-cache del curl
+        shell: sh
+        if: startsWith(matrix.container, 'alpine') && matrix.container != 'alpine:3.22' && matrix.container != 'alpine:3.23'
+      # remove bash installed by checkout-action
+      - run: apk --no-cache del bash
+        shell: sh
+        if: startsWith(matrix.container, 'alpine')
+      - uses: ./
+        with:
+          tool: cargo-hack
+          locked: false
+      - run: cargo hack --version
+        shell: sh
+      - uses: ./
+        with:
+          tool: cargo-llvm-cov
+      - run: cargo llvm-cov --version
+        shell: sh
