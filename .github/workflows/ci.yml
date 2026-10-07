@@ -108,6 +108,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
       - run: |
           printf '%s\n' 'C:\msys64\mingw32\bin' >>"${GITHUB_PATH}"
           printf '%s\n' 'C:\msys64\usr\bin' >>"${GITHUB_PATH}"
@@ -118,7 +123,7 @@ jobs:
           printf '%s\n' 'C:\tools\cygwin\usr\bin' >>"${GITHUB_PATH}"
           printf '%s\n' 'SHELLOPTS=igncr' >>"${GITHUB_ENV}"
         if: matrix.bash == 'cygwin'
-      - uses: taiki-e/checkout-action@v1
+      - uses: taiki-e/checkout-action@7d1e50e93dc4fb3bba58f85018fadf77898aee8b # v1.4.2
       - uses: step-security/taiki-e-install-action@v2
         with:
           tool: rust@stable
@@ -214,7 +219,7 @@ jobs:
         if: matrix.container != 'alpine:3.22' && matrix.container != 'alpine:3.23'
       - run: apt-get -qq -o Dpkg::Use-Pty=0 purge -y curl
         if: startsWith(matrix.container, 'ubuntu') || startsWith(matrix.container, 'debian')
-      - uses: taiki-e/checkout-action@v1
+      - uses: taiki-e/checkout-action@7d1e50e93dc4fb3bba58f85018fadf77898aee8b # v1.4.2
       - run: apk --no-cache del curl
         shell: sh
         if: startsWith(matrix.container, 'alpine') && matrix.container != 'alpine:3.22' && matrix.container != 'alpine:3.23'
