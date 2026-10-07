@@ -4,12 +4,6 @@ permissions: {}
 
 on:
   pull_request:
-  push:
-    branches:
-      - main
-      - dev
-  schedule:
-    - cron: '0 2 * * *'
   workflow_dispatch:
 
 defaults:
@@ -125,7 +119,7 @@ jobs:
           printf '%s\n' 'SHELLOPTS=igncr' >>"${GITHUB_ENV}"
         if: matrix.bash == 'cygwin'
       - uses: taiki-e/checkout-action@v1
-      - uses: taiki-e/install-action@v2
+      - uses: step-security/taiki-e-install-action@v2
         with:
           tool: rust@stable
           fallback: none
@@ -213,7 +207,7 @@ jobs:
         run: apk --no-cache add bash ca-certificates curl gcc musl-dev
         shell: sh
         if: startsWith(matrix.container, 'alpine') && matrix.container != 'alpine:3.22' && matrix.container != 'alpine:3.23'
-      - uses: taiki-e/install-action@v2
+      - uses: step-security/taiki-e-install-action@v2
         with:
           tool: rust@stable
           fallback: none

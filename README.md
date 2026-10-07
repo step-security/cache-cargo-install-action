@@ -77,7 +77,7 @@ To migrate from this action to install-action:
 
 ```diff
 - - uses: step-security/cache-cargo-install-action@v3
-+ - uses: taiki-e/install-action@v2
++ - uses: step-security/taiki-e-install-action@v2
     with:
       tool: cargo-hack
 ```
@@ -85,7 +85,7 @@ To migrate from this action to install-action:
 To migrate from install-action to this action:
 
 ```diff
-- - uses: taiki-e/install-action@v2
+- - uses: step-security/taiki-e-install-action@v2
 + - uses: step-security/cache-cargo-install-action@v3
     with:
       tool: cargo-hack
@@ -98,7 +98,7 @@ The interface of this action is a subset of the interface of [install-action], s
   For example, in install-action, you can write:
 
   ```yaml
-  - uses: taiki-e/install-action@v2
+  - uses: step-security/taiki-e-install-action@v2
     with:
       tool: cargo-hack,cargo-minimal-versions
   ```
@@ -141,20 +141,12 @@ On other platforms, the following tools are also required:
 
 Note that what this action installs for its setup (such as above tools) is considered an implementation detail if they are installed by this action's side, and there is no guarantee that they will be available in subsequent steps, because this action is not an action for installing those tools.
 
-## Related Projects
-
-- [install-action]: GitHub Action for installing development tools (mainly from GitHub Releases).
-- [create-gh-release-action]: GitHub Action for creating GitHub Releases based on changelog.
-- [upload-rust-binary-action]: GitHub Action for building and uploading Rust binary to GitHub Releases.
-- [setup-cross-toolchain-action]: GitHub Action for setup toolchains for cross compilation and cross testing for Rust.
-- [checkout-action]: GitHub Action for checking out a repository. (Simplified actions/checkout alternative that does not depend on Node.js.)
-
 [actions/cache]: https://github.com/actions/cache
 [checkout-action]: https://github.com/taiki-e/checkout-action
 [create-gh-release-action]: https://github.com/taiki-e/create-gh-release-action
 [install-action]: https://github.com/taiki-e/install-action
 [setup-cross-toolchain-action]: https://github.com/step-security/setup-cross-toolchain-action
-[upload-rust-binary-action]: https://github.com/taiki-e/upload-rust-binary-action
+[upload-rust-binary-action]: https://github.com/step-security/upload-rust-binary-action
 
 ## License
 
